@@ -1,13 +1,16 @@
 from django.db import models
 from django.contrib.auth.models import User
+import datetime
+from django.db.models.signals import pre_save
+from django.dispatch import receiver
 
 
 class Provider(models.Model):
     # Модель поставщика
     full_name = models.CharField(max_length=200)
     cut_name = models.CharField(max_length=50)
-    inn = models.IntegerField()
-    sap_code = models.IntegerField()
+    inn = models.IntegerField(unique=True)
+    sap_code = models.IntegerField(unique=True)
     address = models.TextField()
     e_mail = models.EmailField()
     telephone = models.CharField(max_length=20)
@@ -16,6 +19,9 @@ class Provider(models.Model):
     total_penalty = models.FloatField(default=0.0)
     payd_penalty = models.FloatField(default=0.0)
     sum_of_pretensions = models.FloatField(default=0.0)
+
+    def __str__(self):
+        return self.cut_name
 
     def get_sum_of_pretensions(self):
         # Возвращает сумму выставленных претензий
@@ -68,24 +74,24 @@ class Contract(models.Model):
         FINISHED: 'Завершена'
     }
     # Модель договора
-    number = models.CharField(max_length=9)
+    number = models.CharField(max_length=16, unique=True)
     start_date = models.DateField(blank=True)
-    finish_date = models.DateField(blank=True) # Крайняя дата поставки
+    finish_date = models.DateField(blank=True, null=True)  # Крайняя дата поставки
     contract_provider = models.ForeignKey(
         Provider,
         on_delete=models.PROTECT
     )
-    company = models.ForeignKey('Company', on_delete=models.CASCADE, blank=True)  # Это общество группы с которым заключен договор
+    company = models.ForeignKey('Company', on_delete=models.CASCADE, blank=True, null=True)  # Это общество группы с которым заключен договор
     employee = models.ForeignKey('Staff', on_delete=models.PROTECT, blank=True)
     delivery_item = models.CharField(max_length=200, blank=True)  # Предмет поставки
-    amount = models.FloatField(blank=True)  # Сумма договора
-    payment_term = models.IntegerField()  # Срок оплаты в днях
-    deliver_penalty_percent = models.FloatField(blank=True)
-    max_deliver_penalty_percent = models.FloatField(blank=True)
-    paid_penalty_percent = models.FloatField(blank=True)
-    max_paid_penalty_percent = models.FloatField(blank=True)
+    amount = models.FloatField()  # Сумма договора
+    payment_term = models.IntegerField(null=True, default=60)  # Срок оплаты в днях
+    deliver_penalty_percent = models.FloatField(blank=True, null=True)
+    max_deliver_penalty_percent = models.FloatField(blank=True, null=True)
+    paid_penalty_percent = models.FloatField(blank=True, null=True)
+    max_paid_penalty_percent = models.FloatField(blank=True, null=True)
     already_get_amount = models.FloatField(default=0.0)
-    remains_deliver_amount = models.FloatField(default=amount, blank=True)
+    remains_deliver_amount = models.FloatField(blank=True)
     penalty_for_supply = models.FloatField(default=0.0)
     penalty_for_payment = models.FloatField(default=0.0)
     sum_of_pretensions = models.FloatField(default=0.0)
@@ -97,25 +103,64 @@ class Contract(models.Model):
     paid_penalty = models.FloatField(default=0.0)
     is_done = models.BooleanField(default=False)
 
+    def __str__(self):
+        return f'Договор {self.number} от {self.start_date} на сумму {self.amount} р'
+
+    def save(self, *args, **kwargs):
+        self.remains_deliver_amount = self.amount
+        super(Contract, self).save(*args, **kwargs)
+
     def make_already_get_amount(self):
-        # Расчитывает сумму поставленного
-        pass
+        #  Расчитывает сумму поставленного и изменяет значение остатка к поставке
+        already_amount = 0
+        all_delivers = self.deliver_set.all()
+        if all_delivers:
+            for deliver in all_delivers:
+                already_amount += deliver.total
+            self.already_get_amount = already_amount
+            self.remains_deliver_amount = self.amount - already_amount
 
-    def make_remains_deliver_amount(self):
-        # Расчитывает остаток к поставке
-        pass
+    def make_contract_penalty(self):
+        # Расчитывает неустойку и выдает итого неустойки + или -
+        Contract.make_already_get_amount(self)
+        all_delivers = self.deliver_set.all()
+        penalty_for_supply = 0
+        penalty_for_payment = 0
+        if all_delivers:
+            for deliver in all_delivers:
+                deliver_late_days = (deliver.delivered-self.finish_date).days #  Дней просрочки поставки
+                #  Вычислим дней по просрочки оплаты
+                if deliver.paid_fact:
+                    paid_late_days = (deliver.paid_fact - (deliver.delivered + datetime.timedelta(days=self.payment_term))).days
+                else:
+                    paid_late_days = (datetime.date.today() - (deliver.delivered + datetime.timedelta(days=self.payment_term))).days
+                #   Вычислим пеню за просрочку поставки
+                if deliver_late_days > 0:
+                    penalty_for_supply += (deliver.total / 100) * self.deliver_penalty_percent * deliver_late_days
+                #  Вычислим неустойку за просрочку оплаты
+                if paid_late_days > 0:
+                    penalty_for_payment += (deliver.total / 100) * self.paid_penalty_percent * paid_late_days
+        if self.remains_deliver_amount > 0:
+            deliver_late_days = (datetime.date.today()-self.finish_date).days
+            penalty_for_supply += self.remains_deliver_amount / 100 * self.paid_penalty_percent * deliver_late_days
+        #  Далее считаем максимальные неустойки по договору
+        deliver_max_penalty = self.amount / 100 * self.max_deliver_penalty_percent
+        payment_max_penalty = self.amount / 100 * self.max_paid_penalty_percent
 
-    def get_contract_penalty(self):
-        # Итого нестойки + или -
-        pass
+        if penalty_for_supply > deliver_max_penalty:
+            penalty_for_supply = deliver_max_penalty
+        if penalty_for_payment > payment_max_penalty:
+            penalty_for_payment = payment_max_penalty
+        self.penalty_for_payment = penalty_for_payment
+        self.penalty_for_supply = penalty_for_supply
+        self.sum_of_pretensions = penalty_for_supply - penalty_for_payment
+        return penalty_for_supply - penalty_for_payment
 
     def get_penalty_for_payment(self):
-        # Возвращает сумму неустойки за оплату
-        pass
+        return self.penalty_for_payment
 
     def get_penalty_for_supply(self):
-        # Возвращает сумму неустойки за поставку
-        pass
+        return self.penalty_for_supply
 
     def set_pretension_status(self):
         # Устанавливает статус претензионный статус договора
@@ -130,15 +175,19 @@ class Contract(models.Model):
         # Учтанавлиывет компанию по номеру договора
         pass
 
+
 class Company(models.Model):
     # Это общество группы от имени которого заключался договор
     full_name = models.CharField(max_length=200)
     cut_name = models.CharField(max_length=50)
-    inn = models.IntegerField()
-    sap_code = models.IntegerField()
+    inn = models.IntegerField(unique=True)
+    sap_code = models.IntegerField(unique=True)
     address = models.TextField()
     e_mail = models.EmailField()
     telephone = models.CharField(max_length=20)
+
+    def __str__(self):
+        return self.cut_name
 
 
 class Department(models.Model):
@@ -146,14 +195,20 @@ class Department(models.Model):
     title = models.CharField(max_length=72)
     cut = models.CharField(max_length=10)
 
+    def __str__(self):
+        return self.title
+
 
 class Staff(models.Model):
     # Персонал
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    sap_id = models.IntegerField()
+    sap_id = models.IntegerField(unique=True)
     department = models.ForeignKey(Department, on_delete=models.PROTECT)
     dep_director = models.BooleanField(default=False)  # Является ли начальником отдела
     main_man = models.BooleanField(default=False)  # Является ли руководителем верхнего звена
+
+    def __str__(self):
+        return self.user.username
 
 
 class Deliver(models.Model):
@@ -161,11 +216,13 @@ class Deliver(models.Model):
     invoice = models.CharField(max_length=128)  # № счет-фактуры (УПД)
     invoice_date = models.DateField()  # Дата фактуры
     total = models.FloatField()  #Сумма фактуры
-    delivered = models.DateField(blank=True)
-    payment_term = models.DateField(blank=True)  # срок оплаты дата
-    paid_fact = models.DateField(blank=True)  # факт оплаты дата
+    delivered = models.DateField(blank=True, null=True)
+    payment_term = models.DateField(blank=True, null=True)  # срок оплаты дата
+    paid_fact = models.DateField(blank=True, null=True)  # факт оплаты дата
     contract = models.ForeignKey(Contract, on_delete=models.CASCADE)
 
+    def __str__(self):
+        return f'Поставка {self.invoice} от {self.invoice_date}  сумма {self.total} по договору {self.contract.number}'
 
     def set_payment_term(self):
         # Установить срок оплаты
@@ -184,6 +241,9 @@ class BeforePretension(models.Model):
     is_satisfied = models.BooleanField(default=False)
     penalty_paid = models.FloatField(default=0)
 
+    def __str__(self):
+        return f'№ {self.number} от {self.note_date}'
+
 
 class PretensionNote(models.Model):
     # СЗ на УПОБ об инициировании претензии
@@ -194,6 +254,9 @@ class PretensionNote(models.Model):
     contract = models.ForeignKey(Contract, on_delete=models.CASCADE)
     have_answer = models.BooleanField(default=False)
     answer_image = models.FileField(upload_to="pretension_note/answers/%Y/%m/%d/%s", blank=True)
+
+    def __str__(self):
+        return f'№ {self.number} от {self.note_date}'
 
 
 class Pretension(models.Model):
@@ -208,6 +271,9 @@ class Pretension(models.Model):
     is_satisfied = models.BooleanField(default=False)
     penalty_paid = models.FloatField(default=0)
 
+    def __str__(self):
+        return f'№ {self.number} от {self.note_date}'
+
 
 class LawsuitNote(models.Model):
     # СЗ на ГД по исковой
@@ -218,6 +284,10 @@ class LawsuitNote(models.Model):
     contract = models.ForeignKey(Contract, on_delete=models.CASCADE)
     have_answer = models.BooleanField(default=False)
     answer_image = models.FileField(upload_to="pretension_note/answers/%Y/%m/%d/%s", blank=True)
+
+    def __str__(self):
+        return f'№ {self.number} от {self.note_date}'
+
 
 class Lawsuit(models.Model):
     # Иск в суд
@@ -231,3 +301,6 @@ class Lawsuit(models.Model):
     decision_penalty = models.FloatField(blank=True)
     is_satisfied = models.BooleanField(default=False)
     penalty_paid = models.FloatField(default=0)
+
+    def __str__(self):
+        return f'№ {self.number} от {self.note_date}'
