@@ -32,24 +32,44 @@ class Provider(models.Model):
         pass
 
     def get_total_penalty(self):
-        # Итого нестойки + или -
-        pass
+        #  Возвращает сумму неустойки по всем договорам
+        all_contracts = self.contract_set.all()
+        all_penalty = 0
+        for contract in all_contracts:
+            all_penalty += contract.make_contract_penalty()
+        return all_penalty
 
     def get_penalty_for_payment(self):
         # Возвращает сумму неустойки за оплату
-        pass
+        all_contracts = self.contract_set.all()
+        penalty_for_payment = 0
+        for contract in all_contracts:
+            contract.make_contract_penalty()
+            penalty_for_payment += contract.penalty_for_payment
+        return penalty_for_payment
 
     def get_penalty_for_supply(self):
         # Возвращает сумму неустойки за поставку
-        pass
+        all_contracts = self.contract_set.all()
+        penalty_for_supply = 0
+        for contract in all_contracts:
+            contract.make_contract_penalty()
+            penalty_for_supply += contract.penalty_for_supply
+        return penalty_for_supply
 
     def get_contracts_count(self):
         # Возвращает количество догооров
-        pass
+        all_contracts = self.contract_set.all()
+        return len(all_contracts)
 
     def get_bad_history(self):
         # Возвращает количество (или процент) договоров с просрочкой поставки
-        pass
+        all_contracts = self.contract_set.all()
+        count = 0
+        for contract in all_contracts:
+            if contract.penalty_for_supply > 0:
+                count += 1
+        return count
 
 
 class Contract(models.Model):
