@@ -1,0 +1,29 @@
+{% extends 'contracts/base.html' %}
+
+{% block content %}
+    <H1>
+        {{ title }}
+    </H1>
+        <li>
+            ИНН: {{provider.inn}}
+        </li>
+        <li>
+            Код в SAP: {{provider.sap_code}}
+        </li>
+        <li>
+            E-mail: {{provider.e_mail}}
+        </li>
+        <li>
+            Телефон: {{provider.telephone}}
+        </li>
+        <li>
+            Всего договоров: {{provider.get_contracts_count}}
+            {% if provider.get_bad_history > 0 %}
+            , из них с просрочкой {{ provider.get_bad_history }}
+            {% else %}
+                все без просрочки поставки
+            {% endif %}
+            .
+        </li>
+
+{% endblock %}

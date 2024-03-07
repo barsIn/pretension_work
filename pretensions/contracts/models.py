@@ -65,6 +65,7 @@ class Provider(models.Model):
     def get_bad_history(self):
         # Возвращает количество (или процент) договоров с просрочкой поставки
         all_contracts = self.contract_set.all()
+        print(all_contracts)
         count = 0
         for contract in all_contracts:
             if contract.penalty_for_supply > 0:
@@ -124,7 +125,7 @@ class Contract(models.Model):
     is_done = models.BooleanField(default=False)
 
     def __str__(self):
-        return f'Договор {self.number} от {self.start_date} на сумму {self.amount} р'
+        return f'Договор {self.number} от {self.start_date} на сумму {self.amount} р, просрочка {self.sum_of_pretensions}'
 
     def save(self, *args, **kwargs):
         self.remains_deliver_amount = self.amount
@@ -174,6 +175,7 @@ class Contract(models.Model):
         self.penalty_for_payment = penalty_for_payment
         self.penalty_for_supply = penalty_for_supply
         self.sum_of_pretensions = penalty_for_supply - penalty_for_payment
+        self.save()
         return penalty_for_supply - penalty_for_payment
 
     def get_penalty_for_payment(self):
