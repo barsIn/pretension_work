@@ -12,11 +12,11 @@ menu = [
 # menu = ['Все договоры', 'Незаполненные договоры', 'Просрочена поставка', 'Новая поставка', 'Требуется инициирование ПИР']
 
 def index(request):
-    queryset = Contract.objects.all()
+    queryset = Contract.objects.filter(is_done=False)
     for contr in queryset:
         contr.make_contract_penalty()
     data = {
-        'title': 'Главная страница1',
+        'title': 'Главная страница',
         'menu': menu,
         'contracts': queryset
     }
