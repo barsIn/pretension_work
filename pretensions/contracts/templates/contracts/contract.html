@@ -1,0 +1,41 @@
+{% extends 'contracts/base.html' %}
+
+{% block content %}
+    <H1>
+        Договор № {{ title }} от {{ contract.start_date }}
+    </H1>
+        <li>
+            Поставщик: {{contract.contract_provider}}
+        </li>
+        <li>
+            Сумма договора: {{contract.amount}}
+        </li>
+        {% if contract.already_get_amount %}
+        <li>
+            Уже поставлено: {{contract.already_get_amount}}
+        </li>
+        {% endif %}
+        <li>
+            Остаток к поставке: {{contract.remains_deliver_amount}}
+        </li>
+        {% if contract.sum_of_pretensions > 0 %}
+        <li>
+            Сумма пени за просрочку: {{contract.sum_of_pretensions}}
+        </li>
+        <li>
+            Статус претензионной работы: {{contract.pretension_status}}
+        </li>
+        {% endif %}
+        <br>
+    {% if delivers %}
+    <h3>
+        Поставки:
+    </h3>
+    {% for deliver in delivers %}
+    <li>
+            На сумму: {{deliver.total}} по счету-фактуре {{deliver.invoice}}, осуществлена {{deliver.invoice_date}}
+    </li>
+    {% endfor %}
+    {% endif %}
+
+{% endblock %}

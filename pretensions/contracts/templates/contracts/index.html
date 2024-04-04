@@ -6,7 +6,8 @@
     </H1>
     {% for cont in contracts %}
     <p>
-        {{ cont }}
+        <a href="{% url 'contract_id' cont.id %}"> {{ cont }} </a>
     </p>
+
     {% endfor %}
 {% endblock %}

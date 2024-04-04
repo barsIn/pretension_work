@@ -137,9 +137,9 @@ class Contract(models.Model):
     def __str__(self):
         return f'Договор {self.number} от {self.start_date} на сумму {self.amount} р, сумма пени {self.sum_of_pretensions}'
 
-    def save(self, *args, **kwargs):
-        self.remains_deliver_amount = self.amount
-        super(Contract, self).save(*args, **kwargs)
+    # def save(self, *args, **kwargs):
+    #     self.remains_deliver_amount = self.amount
+    #     super(Contract, self).save(*args, **kwargs)
 
     def make_already_get_amount(self):
         #  Расчитывает сумму поставленного и изменяет значение остатка к поставке
@@ -150,6 +150,7 @@ class Contract(models.Model):
                 already_amount += deliver.total
             self.already_get_amount = already_amount
             self.remains_deliver_amount = self.amount - already_amount
+            self.save()
 
     def make_contract_penalty(self):
         # Расчитывает неустойку и выдает итого неустойки + или -
