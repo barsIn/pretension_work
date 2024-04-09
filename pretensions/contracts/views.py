@@ -5,18 +5,20 @@ from .models import Provider, Contract
 from django.http import HttpResponseNotFound
 
 menu = [
-    {'title': 'Все договоры', 'url_name': 'home'},
+    {'title': 'Действующие договоры', 'url_name': 'home'},
     {'title': ' Контрагенты', 'url_name': 'providers'},
-    {'title': 'Что-то еще', 'url_name': 'home'},
+    {'title': 'Все договоры', 'url_name': 'all_contracts'},
 ]
 
 # menu = ['Все договоры', 'Незаполненные договоры', 'Просрочена поставка', 'Новая поставка', 'Требуется инициирование ПИР']
 
 
 def index(request):
-    queryset = Contract.objects.filter(is_done=False)
-    for contr in queryset:
-        contr.make_contract_penalty()
+    queryset = Contract.current.all()
+    for contract in queryset:
+        contract.make_already_get_amount()
+        contract.make_contract_penalty()
+        contract.set_done()
     data = {
         'title': 'Главная страница',
         'menu': menu,
@@ -28,13 +30,29 @@ def index(request):
     # return HttpResponse(t)
 
 
+def all_contracts(request):
+    queryset = Contract.objects.all()
+    data = {
+        'title': 'Главная страница',
+        'menu': menu,
+        'contracts': queryset
+    }
+    template = 'contracts/index.html'
+    return render(request, template, context=data)
+
+
 def show_contract(request, contract_id):
     contract = get_object_or_404(Contract, pk=contract_id)
+    if contract.company is None:
+        contract.set_company()
+    contract.make_contract_penalty()
     contract.make_already_get_amount()
+    status = contract.pretension_status
     data = {
         'title': contract.number,
         'menu': menu,
-        'contract': contract
+        'contract': contract,
+        'status': Contract.PRETENSION_CHOICES[status]
     }
     delivers = contract.deliver_set.all()
     if delivers:
@@ -55,7 +73,7 @@ def providers(request):
 
 
 def provider(request, prov_id):
-    provider = Provider.objects.get(pk=prov_id)
+    provider = get_object_or_404(Provider, pk=prov_id)
     data = {
         'title': provider.cut_name,
         'provider': provider,

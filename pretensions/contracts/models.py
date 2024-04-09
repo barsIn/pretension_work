@@ -1,8 +1,19 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.urls import reverse
 import datetime
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
+
+
+class DoneManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(is_done=True)
+
+
+class CurrentManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(is_done=False)
 
 
 class Provider(models.Model):
@@ -24,8 +35,12 @@ class Provider(models.Model):
         ordering = ['sap_code', '-total_penalty']
         verbose_name = 'Контрагент'
         verbose_name_plural = 'Контрагенты'
+
     def __str__(self):
         return self.cut_name
+
+    def get_absolute_url(self):
+        return reverse('provider_id', kwargs={'prov_id': self.id})
 
     def get_sum_of_pretensions(self):
         # Возвращает сумму выставленных претензий
@@ -84,7 +99,7 @@ class Contract(models.Model):
     LAWSUIT_NOTE = 'LN'
     LAWSUIT_START = 'LS'
     LAWSUIT_FINISH = 'LF'
-    STPTED_BY_MANAGMENT = 'SM'
+    STOPTED_BY_MANAGMENT = 'SM'
     FINISHED = 'FN'
     PRETENSION_CHOICES = {
         UNINITIATED: 'Не инициирована',
@@ -94,7 +109,7 @@ class Contract(models.Model):
         LAWSUIT_NOTE: 'Направлена СЗ по исковому',
         LAWSUIT_START: 'Иск подан в суд',
         LAWSUIT_FINISH: 'Суд завершен',
-        STPTED_BY_MANAGMENT: 'Прекращено руководством',
+        STOPTED_BY_MANAGMENT: 'Прекращено руководством',
         FINISHED: 'Завершена'
     }
     # Модель договора
@@ -129,6 +144,10 @@ class Contract(models.Model):
     paid_penalty = models.FloatField(verbose_name='Оплачено пени со стороны КА', default=0.0)
     is_done = models.BooleanField(verbose_name='Договор закрыт', default=False)
 
+    objects = models.Manager()
+    done = DoneManager()
+    current = CurrentManager()
+
     class Meta:
         ordering = ['start_date', '-sum_of_pretensions']
         verbose_name = 'Договор'
@@ -137,9 +156,13 @@ class Contract(models.Model):
     def __str__(self):
         return f'Договор {self.number} от {self.start_date} на сумму {self.amount} р, сумма пени {self.sum_of_pretensions}'
 
-    # def save(self, *args, **kwargs):
-    #     self.remains_deliver_amount = self.amount
-    #     super(Contract, self).save(*args, **kwargs)
+    def get_absolute_url(self):
+        return reverse('contract_id', kwargs={'contract_id': self.id})
+
+    def save(self, *args, **kwargs):
+        if self.remains_deliver_amount is None:
+            self.remains_deliver_amount = self.amount
+            super(Contract, self).save(*args, **kwargs)
 
     def make_already_get_amount(self):
         #  Расчитывает сумму поставленного и изменяет значение остатка к поставке
@@ -187,7 +210,7 @@ class Contract(models.Model):
         self.penalty_for_supply = penalty_for_supply
         self.sum_of_pretensions = penalty_for_supply - penalty_for_payment
         self.save()
-        return penalty_for_supply - penalty_for_payment
+        return self.sum_of_pretensions
 
     def get_penalty_for_payment(self):
         return self.penalty_for_payment
@@ -202,11 +225,22 @@ class Contract(models.Model):
     def set_done(self):
         # Устанавливает статус закрытого договора если всё поставлено без пени, либо если претензионка прекращена,
         # либо претензионка не инициирована и срок исковой давности истек
-        pass
+        if self.remains_deliver_amount <= 0 and (self.sum_of_pretensions <= 0 or self.pretension_status == 'SM'):
+            self.is_done = True
+            self.save()
 
     def set_company(self):
-        # Учтанавлиывет компанию по номеру договора
-        pass
+        # Устанавливает общество в договоре
+        number = str(self.number)
+        if number[0] == 'B':
+            self.company = Company.objects.get(cut_name='ООО "РН-Ванкор"')
+        elif number[0:4] == '171':
+            self.company = Company.objects.get(cut_name='АО "Ванкорнефть"')
+        elif number[0:4] == '751':
+            self.company = Company.objects.get(cut_name='АО "Сузун"')
+        elif number[0:4] == '752':
+            self.company = Company.objects.get(cut_name='ООО "Тагульское"')
+        self.save()
 
 
 class Company(models.Model):
@@ -274,12 +308,21 @@ class Deliver(models.Model):
         verbose_name = 'Поставка'
         verbose_name_plural = 'Поставки'
 
+    # @classmethod
+    # def create(cls, invoice, invoice_date, total, delivered, payment_term, paid_fact, contract):
+    #     deliver = cls(invoice=invoice, invoice_date=invoice_date, total=total, delivered=delivered, paid_fact=paid_fact, contract=contract)
+    #     contract.already_get_amount += total
+    #     contract.remains_deliver_amount -= total
+    #     contract.save()# do something with the deliver
+    #     return deliver
+
     def __str__(self):
         return f'Поставка {self.invoice} от {self.invoice_date}  сумма {self.total} по договору {self.contract.number}'
 
     def set_payment_term(self):
         # Установить срок оплаты
         pass
+
 
 
 class BeforePretension(models.Model):

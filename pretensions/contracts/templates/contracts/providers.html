@@ -8,7 +8,7 @@
     <ul>
         {% for prov in providers %}
             <li>
-                <a href="{% url 'provider_id' prov.id %}"> {{ prov.cut_name }} </a> Всего договоров {{ prov.get_contracts_count }}  Всего неустойки {{ prov.get_total_penalty }}
+                <a href="{{ prov.get_absolute_url }}"> {{ prov.cut_name }} </a> Всего договоров {{ prov.get_contracts_count }}  Всего неустойки {{ prov.get_total_penalty }}
             </li>
 
         {% endfor %}
