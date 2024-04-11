@@ -15,6 +15,11 @@ a:hover {
 	color: #CC0000;
 	text-decoration: underline;
 }
+a.red {
+	color: red;
+	text-decoration: none;
+}
+
 
 img {max-width: 600px; height: auto;}
 
@@ -407,3 +412,8 @@ ul.lang-list li a:hover {color: #fdc073;}
     min-width: 200px;
     font-size: 16px;
 }
+
+.red {
+    color: red; /* Цвет символа */
+    font-size: 110%; /* Размер шрифта */
+   }

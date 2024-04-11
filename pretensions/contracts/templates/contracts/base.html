@@ -10,7 +10,13 @@
 <body>
     <nav>
         {% for m in menu %}
+        {% if m.title == 'Не заполненные' %}
+        {% if blank %}
+        <a href="{% url m.url_name %}" class="red"><b>{{ m.title }} ({{ blank }})</b></a>
+        {% endif %}
+        {% else %}
         <a href="{% url m.url_name %}">{{ m.title }}</a>
+        {% endif %}
         {% endfor %}
     </nav>
     {% block content %}

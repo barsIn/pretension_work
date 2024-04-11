@@ -8,4 +8,6 @@ urlpatterns = [
     path('provider/<int:prov_id>/', views.provider, name='provider_id'),
     path('providers/provider/<int:prov_id>/', views.provider, name='provider_id'),
     path('contracts/contract/<int:contract_id>/', views.show_contract, name='contract_id'),
+    path('contracts/unfielded/', views.unfilded_contracts, name='unfielded'),
+    path('contract/add/', views.create_contract, name='create_contract')
 ]

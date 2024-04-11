@@ -6,7 +6,9 @@ from django.http import HttpResponseNotFound
 
 menu = [
     {'title': 'Действующие договоры', 'url_name': 'home'},
+    {'title': 'Добавить договор', 'url_name': 'create_contract'},
     {'title': ' Контрагенты', 'url_name': 'providers'},
+    {'title': 'Не заполненные', 'url_name': 'unfielded'},
     {'title': 'Все договоры', 'url_name': 'all_contracts'},
 ]
 
@@ -14,7 +16,7 @@ menu = [
 
 
 def index(request):
-    queryset = Contract.current.all()
+    queryset = Contract.unblank.filter(is_done=False)
     for contract in queryset:
         contract.make_already_get_amount()
         contract.make_contract_penalty()
@@ -24,6 +26,8 @@ def index(request):
         'menu': menu,
         'contracts': queryset
     }
+    if Contract.unblank.all().exists():
+        data['blank'] = Contract.blanks.count()
     template = 'contracts/index.html'
     return render(request, template, context=data)
     # t = render_to_string('contracts/index.html')
@@ -31,9 +35,22 @@ def index(request):
 
 
 def all_contracts(request):
-    queryset = Contract.objects.all()
+    queryset = Contract.unblank.all()
     data = {
-        'title': 'Главная страница',
+        'title': 'Все договоры',
+        'menu': menu,
+        'contracts': queryset
+    }
+    if Contract.unblank.all().exists():
+        data['blank'] = Contract.blanks.count()
+    template = 'contracts/index.html'
+    return render(request, template, context=data)
+
+
+def unfilded_contracts(request):
+    queryset = Contract.blanks.all()
+    data = {
+        'title': 'Не заполненные догвооры',
         'menu': menu,
         'contracts': queryset
     }
@@ -60,6 +77,14 @@ def show_contract(request, contract_id):
     template = 'contracts/contract.html'
     return render(request, template, context=data)
 
+
+def create_contract(request):
+    data = {
+        'title': 'Создание договора',
+        'menu': menu
+    }
+    template = 'contracts/index.html'
+    return render(request, template, context=data)
 
 def providers(request):
     queryset = Provider.objects.all()

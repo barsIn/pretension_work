@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Q
 from django.contrib.auth.models import User
 from django.urls import reverse
 import datetime
@@ -15,6 +16,19 @@ class CurrentManager(models.Manager):
     def get_queryset(self):
         return super().get_queryset().filter(is_done=False)
 
+
+class BlankManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(
+            Q(finish_date=None) | Q(delivery_item=None) | Q(payment_term=None)
+        )
+
+
+class UnBlankManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(
+            ~Q(finish_date=None) & ~Q(delivery_item=None) & ~Q(payment_term=None)
+        )
 
 class Provider(models.Model):
     # Модель поставщика
@@ -52,7 +66,9 @@ class Provider(models.Model):
 
     def get_total_penalty(self):
         #  Возвращает сумму неустойки по всем договорам
-        all_contracts = self.contract_set.all()
+        all_contracts = self.contract_set.filter(
+            ~Q(finish_date=None) & ~Q(delivery_item=None) & ~Q(payment_term=None)
+        )
         all_penalty = 0
         for contract in all_contracts:
             all_penalty += contract.make_contract_penalty()
@@ -60,7 +76,9 @@ class Provider(models.Model):
 
     def get_penalty_for_payment(self):
         # Возвращает сумму неустойки за оплату
-        all_contracts = self.contract_set.all()
+        all_contracts = self.contract_set.filter(
+            ~Q(finish_date=None) & ~Q(delivery_item=None) & ~Q(payment_term=None)
+        )
         penalty_for_payment = 0
         for contract in all_contracts:
             contract.make_contract_penalty()
@@ -69,7 +87,9 @@ class Provider(models.Model):
 
     def get_penalty_for_supply(self):
         # Возвращает сумму неустойки за поставку
-        all_contracts = self.contract_set.all()
+        all_contracts = self.contract_set.filter(
+            ~Q(finish_date=None) & ~Q(delivery_item=None) & ~Q(payment_term=None)
+        )
         penalty_for_supply = 0
         for contract in all_contracts:
             contract.make_contract_penalty()
@@ -128,8 +148,8 @@ class Contract(models.Model):
     payment_term = models.IntegerField(verbose_name='Срок оплаты, дней', null=True, default=60)
     deliver_penalty_percent = models.FloatField(verbose_name='Процент пени за просрочку поставки', blank=True, null=True)
     max_deliver_penalty_percent = models.FloatField(verbose_name='Максимум пени за просрочку поставки', blank=True, null=True)
-    paid_penalty_percent = models.FloatField(verbose_name='Процент пени за просрочку поставки', blank=True, null=True)
-    max_paid_penalty_percent = models.FloatField(verbose_name='Максимум пени за просрочку поставки', blank=True, null=True)
+    paid_penalty_percent = models.FloatField(verbose_name='Процент пени за просрочку оплаты', blank=True, null=True)
+    max_paid_penalty_percent = models.FloatField(verbose_name='Максимум пени за просрочку оплаты', blank=True, null=True)
     already_get_amount = models.FloatField(verbose_name='Уже поставлено', default=0.0)  # Сумма поставленного
     remains_deliver_amount = models.FloatField(verbose_name='Остаток к поставке', blank=True)
     penalty_for_supply = models.FloatField(verbose_name='Сумма пени за просрочку поставки', default=0.0)
@@ -147,6 +167,8 @@ class Contract(models.Model):
     objects = models.Manager()
     done = DoneManager()
     current = CurrentManager()
+    blanks = BlankManager()
+    unblank = UnBlankManager()
 
     class Meta:
         ordering = ['start_date', '-sum_of_pretensions']
@@ -278,9 +300,9 @@ class Department(models.Model):
 
 class Staff(models.Model):
     # Персонал
-    user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name='Пользователь')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name='Пользователь', related_name='employee')
     sap_id = models.IntegerField(verbose_name='Код в системе SAP', unique=True)
-    department = models.ForeignKey(Department, on_delete=models.PROTECT, verbose_name='Отдел')
+    department = models.ForeignKey(Department, on_delete=models.PROTECT, verbose_name='Отдел', related_name='employee')
     dep_director = models.BooleanField(verbose_name='Статус начальника отдела', default=False)
     main_man = models.BooleanField(verbose_name='Статус руководителя верхнего звена', default=False)
 
@@ -301,7 +323,7 @@ class Deliver(models.Model):
     delivered = models.DateField(verbose_name='Дата поставки', blank=True, null=True)
     payment_term = models.DateField(verbose_name='Дата оплаты', blank=True, null=True)  # срок оплаты дата
     paid_fact = models.DateField(verbose_name='Факт оплаты', blank=True, null=True)  # факт оплаты дата
-    contract = models.ForeignKey(Contract, on_delete=models.CASCADE, verbose_name='Договор')
+    contract = models.ForeignKey(Contract, on_delete=models.CASCADE, verbose_name='Договор', related_name='deliver')
 
     class Meta:
         ordering = ['invoice_date', 'invoice']
