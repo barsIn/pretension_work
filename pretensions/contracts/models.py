@@ -146,10 +146,10 @@ class Contract(models.Model):
     delivery_item = models.CharField(verbose_name='Предмет договора', max_length=200, blank=True)  # Предмет поставки
     amount = models.FloatField(verbose_name='Сумма договора')
     payment_term = models.IntegerField(verbose_name='Срок оплаты, дней', null=True, default=60)
-    deliver_penalty_percent = models.FloatField(verbose_name='Процент пени за просрочку поставки', blank=True, null=True)
-    max_deliver_penalty_percent = models.FloatField(verbose_name='Максимум пени за просрочку поставки', blank=True, null=True)
-    paid_penalty_percent = models.FloatField(verbose_name='Процент пени за просрочку оплаты', blank=True, null=True)
-    max_paid_penalty_percent = models.FloatField(verbose_name='Максимум пени за просрочку оплаты', blank=True, null=True)
+    deliver_penalty_percent = models.FloatField(verbose_name='Процент пени за просрочку поставки', blank=True, null=True, default=0.03)
+    max_deliver_penalty_percent = models.FloatField(verbose_name='Максимум пени за просрочку поставки', blank=True, null=True, default=100)
+    paid_penalty_percent = models.FloatField(verbose_name='Процент пени за просрочку оплаты', blank=True, null=True, default=0.03)
+    max_paid_penalty_percent = models.FloatField(verbose_name='Максимум пени за просрочку оплаты', blank=True, null=True, default=10)
     already_get_amount = models.FloatField(verbose_name='Уже поставлено', default=0.0)  # Сумма поставленного
     remains_deliver_amount = models.FloatField(verbose_name='Остаток к поставке', blank=True)
     penalty_for_supply = models.FloatField(verbose_name='Сумма пени за просрочку поставки', default=0.0)
@@ -181,15 +181,15 @@ class Contract(models.Model):
     def get_absolute_url(self):
         return reverse('contract_id', kwargs={'contract_id': self.id})
 
-    def save(self, *args, **kwargs):
-        if self.remains_deliver_amount is None:
-            self.remains_deliver_amount = self.amount
-            super(Contract, self).save(*args, **kwargs)
+    # def save(self, *args, **kwargs):
+    #     if self.remains_deliver_amount is None:
+    #         self.remains_deliver_amount = self.amount
+    #         super(Contract, self).save(*args, **kwargs)
 
     def make_already_get_amount(self):
         #  Расчитывает сумму поставленного и изменяет значение остатка к поставке
         already_amount = 0
-        all_delivers = self.deliver_set.all()
+        all_delivers = self.deliver.all()
         if all_delivers:
             for deliver in all_delivers:
                 already_amount += deliver.total
@@ -200,7 +200,7 @@ class Contract(models.Model):
     def make_contract_penalty(self):
         # Расчитывает неустойку и выдает итого неустойки + или -
         Contract.make_already_get_amount(self)
-        all_delivers = self.deliver_set.all()
+        all_delivers = self.deliver.all()
         penalty_for_supply = 0
         penalty_for_payment = 0
         if all_delivers:
@@ -300,7 +300,7 @@ class Department(models.Model):
 
 class Staff(models.Model):
     # Персонал
-    user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name='Пользователь', related_name='employee')
+    user = models.OneToOneField(User, on_delete=models.CASCADE, verbose_name='Пользователь', related_name='employee')
     sap_id = models.IntegerField(verbose_name='Код в системе SAP', unique=True)
     department = models.ForeignKey(Department, on_delete=models.PROTECT, verbose_name='Отдел', related_name='employee')
     dep_director = models.BooleanField(verbose_name='Статус начальника отдела', default=False)
@@ -322,7 +322,7 @@ class Deliver(models.Model):
     total = models.FloatField(verbose_name='Сумма поставки', )  #Сумма фактуры
     delivered = models.DateField(verbose_name='Дата поставки', blank=True, null=True)
     payment_term = models.DateField(verbose_name='Дата оплаты', blank=True, null=True)  # срок оплаты дата
-    paid_fact = models.DateField(verbose_name='Факт оплаты', blank=True, null=True)  # факт оплаты дата
+    paid_fact = models.DateField(verbose_name='Факт оплаты', blank=True, null=True, default=None)  # факт оплаты дата
     contract = models.ForeignKey(Contract, on_delete=models.CASCADE, verbose_name='Договор', related_name='deliver')
 
     class Meta:

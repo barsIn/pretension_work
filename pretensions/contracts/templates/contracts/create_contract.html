@@ -1,0 +1,18 @@
+{% extends 'contracts/base.html' %}
+
+{% block content %}
+    <H1>
+        {{ title }}
+    </H1>
+    <form action="" method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <p><button type="submit">Отправить</button> </p>
+    </form>
+    <hr>
+    <form enctype="multipart/form-data" action="" method="post">
+        {% csrf_token %}
+        {{ mform }}
+        <p><button type="submit">Отправить</button> </p>
+    </form>
+{% endblock %}

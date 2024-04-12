@@ -9,5 +9,7 @@ urlpatterns = [
     path('providers/provider/<int:prov_id>/', views.provider, name='provider_id'),
     path('contracts/contract/<int:contract_id>/', views.show_contract, name='contract_id'),
     path('contracts/unfielded/', views.unfilded_contracts, name='unfielded'),
-    path('contract/add/', views.create_contract, name='create_contract')
+    path('contract/add/', views.create_contract, name='create_contract'),
+    path('provider/add/', views.create_provider, name='create_provider'),
+    path('deliver/add/<int:contract_id>/', views.create_deliver, name='create_deliver')
 ]

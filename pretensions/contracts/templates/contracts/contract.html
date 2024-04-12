@@ -8,6 +8,9 @@
             Поставщик: {{contract.contract_provider}}
         </li>
         <li>
+            Куратор договора: {{contract.employee}}
+        </li>
+        <li>
             Сумма договора: {{contract.amount}}
         </li>
         {% if contract.already_get_amount %}
@@ -27,6 +30,9 @@
         </li>
         {% endif %}
         <br>
+    <br>
+    <br>
+    <a class="w3-right w3-btn" href="{% url 'create_deliver' contract.id %}"><span class="w3-hide-small"> Добавить поставку </span>❯</a>
     {% if delivers %}
     <h3>
         Поставки:
