@@ -219,7 +219,8 @@ class Contract(models.Model):
                     penalty_for_payment += (deliver.total / 100) * self.paid_penalty_percent * paid_late_days
         if self.remains_deliver_amount > 0:
             deliver_late_days = (datetime.date.today()-self.finish_date).days
-            penalty_for_supply += self.remains_deliver_amount / 100 * self.paid_penalty_percent * deliver_late_days
+            if deliver_late_days > 0:
+                penalty_for_supply = self.remains_deliver_amount / 100 * self.paid_penalty_percent * deliver_late_days
         #  Далее считаем максимальные неустойки по договору
         deliver_max_penalty = self.amount / 100 * self.max_deliver_penalty_percent
         payment_max_penalty = self.amount / 100 * self.max_paid_penalty_percent
@@ -326,7 +327,7 @@ class Deliver(models.Model):
     contract = models.ForeignKey(Contract, on_delete=models.CASCADE, verbose_name='Договор', related_name='deliver')
 
     class Meta:
-        ordering = ['invoice_date', 'invoice']
+        ordering = ['invoice_date', 'payment_term', 'invoice']
         verbose_name = 'Поставка'
         verbose_name_plural = 'Поставки'
 
@@ -344,7 +345,6 @@ class Deliver(models.Model):
     def set_payment_term(self):
         # Установить срок оплаты
         pass
-
 
 
 class BeforePretension(models.Model):

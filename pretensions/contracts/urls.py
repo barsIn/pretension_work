@@ -11,5 +11,6 @@ urlpatterns = [
     path('contracts/unfielded/', views.unfilded_contracts, name='unfielded'),
     path('contract/add/', views.create_contract, name='create_contract'),
     path('provider/add/', views.create_provider, name='create_provider'),
-    path('deliver/add/<int:contract_id>/', views.create_deliver, name='create_deliver')
+    path('deliver/add/<int:contract_id>/', views.create_deliver, name='create_deliver'),
+    path('deliver/pay/add/<int:deliver_id>/', views.add_payment, name='add_payment'),
 ]

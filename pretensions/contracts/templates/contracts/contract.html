@@ -13,6 +13,9 @@
         <li>
             Сумма договора: {{contract.amount}}
         </li>
+        <li>
+            Срок поставки: {{contract.finish_date}}
+        </li>
         {% if contract.already_get_amount %}
         <li>
             Уже поставлено: {{contract.already_get_amount}}
@@ -29,6 +32,10 @@
             Статус претензионной работы: {{status}}
         </li>
         {% endif %}
+<h2>Претензионка</h2>
+    <p>
+        Просрочка поставки {{contract.penalty_for_supply}} Прсрочка оплаты {{ contract.penalty_for_payment }}
+    </p>
         <br>
     <br>
     <br>
@@ -39,7 +46,12 @@
     </h3>
     {% for deliver in delivers %}
     <li>
-            На сумму: {{deliver.total}} по счету-фактуре {{deliver.invoice}}, осуществлена {{deliver.invoice_date}}
+        На сумму: {{deliver.total}} по счету-фактуре {{deliver.invoice}}, осуществлена {{deliver.invoice_date}}
+        {% if deliver.paid_fact%}
+        оплачено {{deliver.paid_fact}}
+        {% else %}
+        <a class="w3-right w3-btn" href="{% url 'add_payment' deliver.id %}"><span class="w3-hide-small"> Добавить оплату </span>❯</a>
+        {% endif %}
     </li>
     {% endfor %}
     {% endif %}

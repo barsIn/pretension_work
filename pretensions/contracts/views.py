@@ -2,8 +2,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from .models import Provider, Contract, Staff, Deliver, Company
-from .forms import AddContractForm, MultiAddForm, AddProviderForm, AddDeliverForm
-from .excel_creators import add_contracts, get_company, add_provider, add_deliver
+from .forms import AddContractForm, MultiAddForm, AddProviderForm, AddDeliverForm, AddPaymentForm
+from .excel_creators import add_contracts, get_company, add_provider, add_deliver, add_deliver_payment
 from django.http import HttpResponseNotFound
 from datetime import timedelta, datetime
 
@@ -135,10 +135,14 @@ def providers(request):
 
 def provider(request, prov_id):
     provider = get_object_or_404(Provider, pk=prov_id)
+    active_contracts = Contract.current.filter(contract_provider=provider, remains_deliver_amount__gt=0)
+    unpaid = Deliver.objects.filter(contract__contract_provider=provider)
     data = {
         'title': provider.cut_name,
         'provider': provider,
-        'menu': menu
+        'menu': menu,
+        'active_contracts': active_contracts,
+        'unpaid': unpaid
     }
     template = 'contracts/provider.html'
     return render(request, template, context=data)
@@ -182,7 +186,7 @@ def create_deliver(request, contract_id):
     if request.method == 'POST':
         if request.FILES:
             mform = MultiAddForm(request.POST, request.FILES)
-            form = AddProviderForm()
+            form = AddDeliverForm()
             if mform.is_valid():
                 add_deliver(request.FILES['multy_add'], contract)
                 return redirect('contract_id', contract_id)
@@ -213,4 +217,35 @@ def create_deliver(request, contract_id):
             'mform': mform
         }
     template = 'contracts/create_provider.html'
+    return render(request, template, context=data)
+
+
+def add_payment(request, deliver_id):
+    deliver = Deliver.objects.get(pk=deliver_id)
+    contract = deliver.contract
+    if request.method == 'POST':
+        if request.FILES:
+            mform = MultiAddForm(request.POST, request.FILES)
+            form = AddPaymentForm()
+            if mform.is_valid():
+                add_deliver_payment(request.FILES['multy_add'], contract)
+                return redirect('contract_id', contract.id)
+        else:
+            form = AddPaymentForm(request.POST)
+            mform = MultiAddForm()
+            if form.is_valid():
+                deliver.paid_fact = form.cleaned_data['paid_fact']
+                deliver.save()
+                return redirect('contract_id', contract.id)
+    else:
+        form = AddPaymentForm()
+        mform = MultiAddForm()
+    data = {
+        'title': f'Добавление оплаты по договору {contract.number}',
+        'deliver': deliver,
+        'menu': menu,
+        'form': form,
+        'mform': mform
+    }
+    template = 'contracts/add_payment.html'
     return render(request, template, context=data)

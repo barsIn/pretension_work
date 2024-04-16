@@ -23,7 +23,26 @@
             {% else %}
                 все без просрочки поставки
             {% endif %}
-            .
-        </li>
 
+        </li>
+        <br>
+        <br>
+{% if active_contracts %}
+<h3>Не поставленные договоры:</h3>
+{% for cont in active_contracts %}
+    <p>
+        <a href="{{ cont.get_absolute_url }}"> {{ cont }} </a> Срок поставки {{cont.finish_date }}
+    </p>
+{% endfor %}
+{% endif %}
+<br>
+<br>
+{% if unpaid%}
+<h3>Не оплаченые поставки:</h3>
+{% for deliv in unpaid %}
+    <p>
+        {{ deliv }}
+    </p>
+{% endfor %}
+{% endif %}
 {% endblock %}

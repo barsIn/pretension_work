@@ -1,0 +1,26 @@
+{% extends 'contracts/base.html' %}
+
+
+{% block content %}
+    <H1>
+        {{ title }}
+    </H1>
+    <li>
+        Счет-фактура {{deliver.invoice}} на сумму: {{deliver.total}}, поставка осуществлена {{deliver.invoice_date}}
+        {% if deliver.paid_fact%}
+        Оплачено {{deliver.paid_fact}}
+        {% else %}
+        <form action="" method="post">
+            {% csrf_token %}
+            {{ form.as_table }}
+            <button type="submit" value='Текст'>Отправить</button>
+        </form>
+        {% endif %}
+    </li>
+    <hr>
+    <form enctype="multipart/form-data" action="" method="post">
+        {% csrf_token %}
+        {{ mform }}
+        <p><button type="submit">Отправить</button> </p>
+    </form>
+{% endblock %}

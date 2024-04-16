@@ -59,3 +59,13 @@ class AddDeliverForm(forms.ModelForm):
             "invoice_date": forms.DateInput(format="%d.%m.%Y"),
             "delivered": forms.DateInput(format="%d.%m.%Y"),
         }
+
+
+class AddPaymentForm(forms.ModelForm):
+
+    class Meta:
+        model = Deliver
+        fields = ['paid_fact', 'id']
+        # widgets = {
+        #     "payment_term": forms.DateInput(format="%d.%m.%Y"),
+        # }

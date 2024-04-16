@@ -92,3 +92,18 @@ def add_deliver(new_file, contract):
         deliver.save()
     data = pd.read_excel(new_file)
     data.apply(create_deliver, axis=1, args=(contract, ))
+
+
+def add_deliver_payment(new_file, contract=None):
+    def create_deliver_payment(colums, contract):
+        if not contract:
+            contract = Contract.blanks.get(number=colums['№ Договора'])
+        try:
+            deliver = contract.deliver.get(invoice=colums['№ Счета-фактуры/УПД'])
+            deliver.paid_fact = colums['Дата оплаты']
+            deliver.save()
+        except Exception as e:
+            print(e)
+
+    data = pd.read_excel(new_file)
+    data.apply(create_deliver_payment, axis=1, args=(contract,))
